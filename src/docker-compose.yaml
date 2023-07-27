@@ -1,0 +1,12 @@
+services:
+  api:
+    build:
+      context: RockPaperScissors
+      dockerfile: RockPaperScissors.Api/Dockerfile
+    ports:
+      - 8000:8000
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8000
+    env_file:
+      - .env
