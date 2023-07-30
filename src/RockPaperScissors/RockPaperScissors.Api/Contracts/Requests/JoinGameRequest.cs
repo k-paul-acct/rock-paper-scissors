@@ -2,7 +2,7 @@ using FluentValidation;
 
 namespace RockPaperScissors.Api.Contracts.Requests;
 
-public record JoinGameRequest(string GameId, string Username);
+public record JoinGameRequest(string GameId, string Name);
 
 public class JoinGameValidator : AbstractValidator<JoinGameRequest>
 {
@@ -12,7 +12,7 @@ public class JoinGameValidator : AbstractValidator<JoinGameRequest>
             .NotEmpty()
             .MaximumLength(32);
 
-        RuleFor(x => x.Username)
+        RuleFor(x => x.Name)
             .NotEmpty()
             .MaximumLength(32);
     }

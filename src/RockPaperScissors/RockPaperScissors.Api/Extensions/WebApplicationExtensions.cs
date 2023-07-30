@@ -2,130 +2,122 @@ using FluentValidation;
 using RockPaperScissors.Api.Contracts;
 using RockPaperScissors.Api.Contracts.Requests;
 using RockPaperScissors.Api.Contracts.Responses;
-using RockPaperScissors.Api.Data.Repositories;
-using RockPaperScissors.Api.Game;
-using RockPaperScissors.Api.Types.Enums;
+using RockPaperScissors.Api.Services.GameScoreService;
+using RockPaperScissors.Api.Services.GameService;
+using RockPaperScissors.Api.Services.MoveService;
+using RockPaperScissors.Api.Services.PlayerService;
+using RockPaperScissors.Api.Services.PlayerService.Results;
+using RockPaperScissors.Api.Types;
+using Serilog;
 
 namespace RockPaperScissors.Api.Extensions;
 
 public static class WebApplicationExtensions
 {
+    public static IApplicationBuilder UseLogging(this IApplicationBuilder app)
+    {
+        app.UseSerilogRequestLogging();
+        return app;
+    }
+
     public static IEndpointRouteBuilder MapGameEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/game/create", (CreateGameRequest model, IValidator<CreateGameRequest> validator,
-            GameRepository gameRepository, PlayerRepository playerRepository) =>
+        app.MapPost("/game/create", async (CreateGameRequest model, IValidator<CreateGameRequest> validator,
+            IGameService gameService, IPlayerService playerService) =>
         {
             var errors = validator.ValidateWithResult(model);
             if (errors is not null) return errors;
 
-            var game = gameRepository.Create();
-            var player = playerRepository.Create(model.Username);
-            game.AddPlayer(player);
+            var game = await gameService.CreateGame();
+            if (game is null) return Results.Problem();
+            var player = await playerService.CreatePlayer(model.Name);
+            if (player is null) return Results.Problem();
 
-            return Results.Json(new CreateGameResponse
+            await gameService.JoinPlayer(game.Id, player.Id);
+
+            return Results.Json(new CreateGameDto
             {
                 GameId = game.Id,
                 PlayerId = player.Id
             }, statusCode: StatusCodes.Status201Created);
         });
 
-        app.MapPost("/game/join", (JoinGameRequest model, IValidator<JoinGameRequest> validator,
-            GameRepository gameRepository, PlayerRepository playerRepository) =>
+        app.MapPost("/game/join", async (JoinGameRequest model, IValidator<JoinGameRequest> validator,
+            IGameService gameService, IPlayerService playerService) =>
         {
             var errors = validator.ValidateWithResult(model);
             if (errors is not null) return errors;
 
-            var game = gameRepository.GetById(model.GameId);
-            if (game is null) return Results.NotFound(new CommonError(ErrorCode.GameNotFound));
+            var game = await gameService.GetById(model.GameId);
+            if (game is null)
+                return Results.NotFound(new CommonError(ErrorCode.GameNotFound));
 
             if (game.Status != GameStatus.PendingPlayers)
                 return Results.BadRequest(new CommonError(ErrorCode.GameIsFull));
 
-            var player = playerRepository.Create(model.Username);
-            game.AddPlayer(player);
+            var player = await playerService.CreatePlayer(model.Name);
+            if (player is null) return Results.Problem();
+
+            await gameService.JoinPlayer(game.Id, player.Id);
 
             return Results.Ok(new { PlayerId = player.Id });
         });
 
-        app.MapPost("/game/turn", (MakeTurnRequest model, IValidator<MakeTurnRequest> validator,
-            GameRepository gameRepository, PlayerRepository playerRepository) =>
+        app.MapPost("/game/turn", async (MakeTurnRequest model, IValidator<MakeTurnRequest> validator,
+            IGameService gameService, IPlayerService playerService, IMoveService moveService) =>
         {
             var errors = validator.ValidateWithResult(model);
             if (errors is not null) return errors;
 
-            _ = Enum.TryParse(model.Turn, out Turn turn);
+            _ = Enum.TryParse(model.Move, out MoveType moveType);
 
-            var game = gameRepository.GetById(model.GameId);
-            if (game is null) return Results.BadRequest(new CommonError(ErrorCode.GameNotFound));
+            var result = await moveService.TryMakeMove(model.GameId, model.PlayerId, moveType);
+            if (!result.IsOk) return Results.BadRequest(new CommonError(result.Error));
 
-            var turnResult = game.MakeTurn(model.PlayerId, turn);
-
-            if (turnResult != MakeTurnResult.Success)
-                return Results.BadRequest(new CommonError(ErrorCode.CannotMakeTurn));
-
-            return Results.Ok(new { GameEnded = game.Status == GameStatus.Ended });
+            return Results.Ok(new { GameStatus = result.Ok.GameStatus.ToString(), result.Ok.PendingOther });
         });
 
-        app.MapGet("/game/{gameId}/stat", (string gameId, GameRepository gameRepository) =>
+        app.MapGet("/game/{gameId}/stat", async (string gameId, IGameScoreService scoreService) =>
         {
-            var game = gameRepository.GetById(gameId);
-            if (game is null) return Results.BadRequest(new CommonError(ErrorCode.GameNotFound));
-
-            var result = game.GetResult();
-            if (result is null) return Results.BadRequest(new CommonError(ErrorCode.GameWasNotEnded));
-
-            return Results.Ok(GameResultResponse.Map(result));
+            var result = await scoreService.GetGameResult(gameId);
+            if (!result.IsOk) return Results.BadRequest(new CommonError(result.Error));
+            return Results.Ok(GameResultDto.Map(result.Ok));
         });
 
-        app.MapPost("/game/restart", (RestartGameRequest model,
-            GameRepository gameRepository, PlayerRepository playerRepository) =>
+        app.MapPost("/game/restart", async (RestartGameRequest model, IValidator<RestartGameRequest> validator,
+            IPlayerService playerService, IGameService gameService) =>
         {
-            var game = gameRepository.GetById(model.GameId);
-            if (game is null) return Results.BadRequest(new CommonError(ErrorCode.GameNotFound));
-            if (game.Status != GameStatus.Ended)
-                return Results.BadRequest(new CommonError(ErrorCode.GameCannotBeRestarted));
-            if (!game.ContainsPlayer(model.PlayerId))
-                return Results.BadRequest(new CommonError(ErrorCode.PlayerNotFound));
+            var errors = validator.ValidateWithResult(model);
+            if (errors is not null) return errors;
 
-            var res = playerRepository.RequestGameRestart(model.PlayerId);
-            if (!res) return Results.BadRequest(new CommonError(ErrorCode.PlayerNotFound));
+            var result = await playerService.RequestGameRestart(model.GameId, model.PlayerId);
+            if (result != RequestGameRestartResult.Success)
+                return Results.BadRequest(new CommonError(result));
 
-            if (!playerRepository.RestartRequestedForAll(game.Player1!.Id, game.Player2!.Id))
+            if (!await playerService.RestartRequestedForAll(model.GameId))
                 return Results.Ok(new { GameRestarted = false, PendingOther = true });
 
-            game.Restart();
-            playerRepository.DeleteRestartRequest(game.Player1.Id);
-            playerRepository.DeleteRestartRequest(game.Player2.Id);
+            await gameService.Restart(model.GameId);
+            await playerService.DeleteRestartRequests(model.GameId);
 
             return Results.Ok(new { GameRestarted = true, PendingOther = false });
         });
 
-        app.MapPost("/game/leave", (LeaveGameRequest model,
-            GameRepository gameRepository, PlayerRepository playerRepository) =>
+        app.MapPost("/game/leave", async (LeaveGameRequest model, IValidator<LeaveGameRequest> validator,
+            IGameService gameService) =>
         {
-            var game = gameRepository.GetById(model.GameId);
-            if (game is null) return Results.BadRequest(new CommonError(ErrorCode.GameNotFound));
-            if (!game.ContainsPlayer(model.PlayerId))
-                return Results.BadRequest(new CommonError(ErrorCode.PlayerNotFound));
+            var errors = validator.ValidateWithResult(model);
+            if (errors is not null) return errors;
 
-            if (game.Player1 is not null) playerRepository.Delete(game.Player1.Id);
-            if (game.Player2 is not null) playerRepository.Delete(game.Player2.Id);
-
-            gameRepository.Delete(game.Id);
-
-            return Results.Ok();
+            var result = await gameService.LeavePlayer(model.GameId, model.PlayerId);
+            return result ? Results.Ok() : Results.BadRequest();
         });
 
-        app.MapGet("/game/{gameId}/live", (string gameId, GameRepository gameRepository) =>
+        app.MapGet("/game/{gameId}/live", async (string gameId, IGameScoreService scoreService) =>
         {
-            var game = gameRepository.GetById(gameId);
-            if (game is null) return Results.BadRequest(new CommonError(ErrorCode.GameNotFound));
-            if (game.Status != GameStatus.InProcess)
-                return Results.BadRequest(new CommonError(ErrorCode.GameIsNotInProcess));
-
-            var live = game.GetLive();
-
-            return Results.Ok(GameLiveResponse.Map(live!));
+            var result = await scoreService.GetGameLive(gameId);
+            if (!result.IsOk) return Results.BadRequest(new CommonError(result.Error));
+            return Results.Ok(GameLiveDto.Map(result.Ok));
         });
 
         return app;

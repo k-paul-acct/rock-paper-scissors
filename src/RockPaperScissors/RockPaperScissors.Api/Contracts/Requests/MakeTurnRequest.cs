@@ -1,9 +1,9 @@
 using FluentValidation;
-using RockPaperScissors.Api.Types.Enums;
+using RockPaperScissors.Api.Types;
 
 namespace RockPaperScissors.Api.Contracts.Requests;
 
-public record MakeTurnRequest(string GameId, string PlayerId, string Turn);
+public record MakeTurnRequest(string GameId, string PlayerId, string Move);
 
 public class MakeTurnValidator : AbstractValidator<MakeTurnRequest>
 {
@@ -17,8 +17,8 @@ public class MakeTurnValidator : AbstractValidator<MakeTurnRequest>
             .NotEmpty()
             .MaximumLength(32);
 
-        RuleFor(x => x.Turn)
+        RuleFor(x => x.Move)
             .NotEmpty()
-            .IsEnumName(typeof(Turn));
+            .IsEnumName(typeof(MoveType));
     }
 }

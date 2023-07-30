@@ -1,4 +1,4 @@
-namespace RockPaperScissors.Api.Game;
+namespace RockPaperScissors.Api.Types;
 
 public enum GameStatus
 {

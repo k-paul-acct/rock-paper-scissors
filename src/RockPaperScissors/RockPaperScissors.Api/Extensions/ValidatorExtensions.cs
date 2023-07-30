@@ -1,4 +1,5 @@
 using FluentValidation;
+using RockPaperScissors.Api.Contracts;
 
 namespace RockPaperScissors.Api.Extensions;
 
@@ -9,14 +10,12 @@ public static class ValidatorExtensions
         var validationResult = validator.Validate(model);
         if (validationResult.IsValid) return null;
 
-        var errors = validationResult.Errors.Select(x => new
+        var errors = validationResult.Errors.Select(x => new FieldError
         {
             Field = x.PropertyName, Message = x.ErrorMessage
-        });
+        }).ToList();
 
-        return Results.BadRequest(new
-        {
-            Error = "BadRequest", ErrorDescription = "One or more validation errors occurred", Errors = errors
-        });
+        var result = new CommonErrorCollection(ErrorCode.BadRequest, "One or more validation errors occurred", errors);
+        return Results.BadRequest(result);
     }
 }
