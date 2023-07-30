@@ -67,7 +67,7 @@ public static class WebApplicationExtensions
             return Results.Ok(new { PlayerId = player.Id });
         });
 
-        app.MapPost("/game/turn", async (MakeTurnRequest model, IValidator<MakeTurnRequest> validator,
+        app.MapPost("/game/move", async (MakeMoveRequest model, IValidator<MakeMoveRequest> validator,
             IGameService gameService, IPlayerService playerService, IMoveService moveService) =>
         {
             var errors = validator.ValidateWithResult(model);

@@ -49,7 +49,7 @@ public class MoveService : IMoveService
         }
     }
 
-    private async Task<bool> AllMadeTurn(string gameId, int roundsPassed)
+    private async Task<bool> AllMadeMove(string gameId, int roundsPassed)
     {
         var movesInRound = await _gameContext.Moves.CountAsync(
             x => x.GameId == gameId && x.RoundIndex == roundsPassed);
@@ -77,8 +77,8 @@ public class MoveService : IMoveService
         _gameContext.Moves.Add(move);
         await _gameContext.SaveChangesAsync();
 
-        var allMadeTurn = await AllMadeTurn(game.Id, game.RoundsPassed);
-        if (allMadeTurn)
+        var allMadeMove = await AllMadeMove(game.Id, game.RoundsPassed);
+        if (allMadeMove)
         {
             var players = await _scoreService.UpdatePlayersScore(game);
             ++game.RoundsPassed;
@@ -86,7 +86,7 @@ public class MoveService : IMoveService
             await _gameContext.SaveChangesAsync();
         }
 
-        var result = new MakeMoveResult(game.Status, !allMadeTurn);
+        var result = new MakeMoveResult(game.Status, !allMadeMove);
         return Result<MakeMoveResult, Error>.FromOk(result);
     }
 }

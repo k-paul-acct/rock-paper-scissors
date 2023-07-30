@@ -10,7 +10,7 @@ public static class WebApplicationBuilderExtensions
     {
         builder.Services.AddValidatorsFromAssemblyContaining<CreateGameRequest>();
         builder.Services.AddValidatorsFromAssemblyContaining<JoinGameRequest>();
-        builder.Services.AddValidatorsFromAssemblyContaining<MakeTurnRequest>();
+        builder.Services.AddValidatorsFromAssemblyContaining<MakeMoveRequest>();
         builder.Services.AddValidatorsFromAssemblyContaining<LeaveGameRequest>();
         builder.Services.AddValidatorsFromAssemblyContaining<RestartGameRequest>();
 

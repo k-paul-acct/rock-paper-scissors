@@ -3,9 +3,9 @@ using RockPaperScissors.Api.Types;
 
 namespace RockPaperScissors.Api.Contracts.Requests;
 
-public record MakeTurnRequest(string GameId, string PlayerId, string Move);
+public record MakeMoveRequest(string GameId, string PlayerId, string Move);
 
-public class MakeTurnValidator : AbstractValidator<MakeTurnRequest>
+public class MakeTurnValidator : AbstractValidator<MakeMoveRequest>
 {
     public MakeTurnValidator()
     {
