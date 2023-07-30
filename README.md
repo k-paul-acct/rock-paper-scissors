@@ -35,7 +35,7 @@ overview of the technologies used, game rules, and API endpoints.
 
 ## API Endpoints
 
-API endpoints have self-descriptive names and parameters as do error and responses. Here I give a brief description of
+API endpoints have self-descriptive names and parameters as do errors and responses. Here I give a brief description of
 the endpoints. Full testing can be done in Swagger.
 
 `POST /game/create` - Create a new game where you can choose to play with bot.
@@ -50,7 +50,7 @@ the endpoints. Full testing can be done in Swagger.
 
 `POST /game/leave` - Leave the game.
 
-`PUT /game/{gameId}/live` - Retrieve live statistics of the passed rounds while game is in process.
+`GET /game/{gameId}/live` - Retrieve live statistics of the passed rounds while game is in process.
 
 ## Getting Started
 
