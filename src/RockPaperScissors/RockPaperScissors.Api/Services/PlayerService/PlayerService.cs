@@ -21,12 +21,13 @@ public class PlayerService : IPlayerService
         _logger = logger;
     }
 
-    public async Task<Player?> CreatePlayer(string name)
+    public async Task<Player?> CreatePlayer(string name, PlayerType type = PlayerType.Normal)
     {
         var player = new Player
         {
             Id = _idGenerator.GeneratePlayerId(),
-            Name = name
+            Name = name,
+            Type = type
         };
 
         _gameContext.Players.Add(player);
@@ -69,7 +70,8 @@ public class PlayerService : IPlayerService
 
     public async Task<bool> RestartRequestedForAll(string gameId)
     {
-        return await _gameContext.RestartRequests.CountAsync(x => x.GameId == gameId) == Game.MaxPlayers;
+        var botsNumber = await _gameContext.Players.CountAsync(x => x.GameId == gameId && x.Type == PlayerType.Bot);
+        return await _gameContext.RestartRequests.CountAsync(x => x.GameId == gameId) == Game.MaxPlayers - botsNumber;
     }
 
     public async Task DeleteRestartRequests(string gameId)

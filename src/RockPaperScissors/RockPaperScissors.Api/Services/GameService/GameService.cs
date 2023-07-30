@@ -95,9 +95,10 @@ public class GameService : IGameService
         game.Status = GameStatus.Aborted;
         await _gameContext.SaveChangesAsync();
 
-        if (await _gameContext.Players.CountAsync(x => x.GameId == gameId) == 0)
+        if (await _gameContext.Players.CountAsync(x => x.GameId == gameId && x.Type != PlayerType.Bot) == 0)
         {
             _gameContext.Games.Remove(game);
+            await _gameContext.Players.Where(x => x.GameId == gameId).ExecuteDeleteAsync();
             await _gameContext.SaveChangesAsync();
         }
 

@@ -6,4 +6,5 @@ namespace RockPaperScissors.Api.Services.MoveService;
 public interface IMoveService
 {
     public Task<Result<MakeMoveResult, Error>> TryMakeMove(string gameId, string playerId, MoveType moveType);
+    public Task TryMakeBotMove(string gameId);
 }

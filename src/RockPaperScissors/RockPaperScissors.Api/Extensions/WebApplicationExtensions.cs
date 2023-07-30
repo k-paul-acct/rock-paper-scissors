@@ -29,11 +29,15 @@ public static class WebApplicationExtensions
             if (errors is not null) return errors;
 
             var game = await gameService.CreateGame();
-            if (game is null) return Results.Problem();
             var player = await playerService.CreatePlayer(model.Name);
-            if (player is null) return Results.Problem();
 
-            await gameService.JoinPlayer(game.Id, player.Id);
+            await gameService.JoinPlayer(game!.Id, player!.Id);
+
+            if (model.WithBot)
+            {
+                var bot = await playerService.CreatePlayer("Bot", PlayerType.Bot);
+                await gameService.JoinPlayer(game.Id, bot!.Id);
+            }
 
             return Results.Json(new CreateGameDto
             {
@@ -73,6 +77,8 @@ public static class WebApplicationExtensions
 
             var result = await moveService.TryMakeMove(model.GameId, model.PlayerId, moveType);
             if (!result.IsOk) return Results.BadRequest(new CommonError(result.Error));
+
+            await moveService.TryMakeBotMove(model.GameId);
 
             return Results.Ok(new { GameStatus = result.Ok.GameStatus.ToString(), result.Ok.PendingOther });
         });

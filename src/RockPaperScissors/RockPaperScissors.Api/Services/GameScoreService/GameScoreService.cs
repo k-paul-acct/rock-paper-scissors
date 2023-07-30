@@ -66,12 +66,12 @@ public class GameScoreService : IGameScoreService
 
         var (firstPoints, secondPoints) = (first, second) switch
         {
-            (MoveType.Rock, MoveType.Paper) => (0, 1),
-            (MoveType.Rock, MoveType.Scissors) => (1, 0),
-            (MoveType.Paper, MoveType.Rock) => (1, 0),
-            (MoveType.Paper, MoveType.Scissors) => (0, 1),
-            (MoveType.Scissors, MoveType.Rock) => (0, 1),
-            (MoveType.Scissors, MoveType.Paper) => (1, 0),
+            (MoveType.Rock, MoveType.Paper) => (0, 2),
+            (MoveType.Rock, MoveType.Scissors) => (2, 0),
+            (MoveType.Paper, MoveType.Rock) => (2, 0),
+            (MoveType.Paper, MoveType.Scissors) => (0, 2),
+            (MoveType.Scissors, MoveType.Rock) => (0, 2),
+            (MoveType.Scissors, MoveType.Paper) => (2, 0),
             _ => (1, 1)
         };
 

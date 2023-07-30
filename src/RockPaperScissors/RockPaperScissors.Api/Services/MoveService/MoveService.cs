@@ -39,6 +39,16 @@ public class MoveService : IMoveService
         return await MakeMove(game, player, moveType);
     }
 
+    public async Task TryMakeBotMove(string gameId)
+    {
+        var bots = _gameContext.Players.Where(x => x.GameId == gameId && x.Type == PlayerType.Bot);
+        foreach (var bot in bots)
+        {
+            var moveType = (MoveType)Random.Shared.Next(3);
+            await TryMakeMove(gameId, bot.Id, moveType);
+        }
+    }
+
     private async Task<bool> AllMadeTurn(string gameId, int roundsPassed)
     {
         var movesInRound = await _gameContext.Moves.CountAsync(
@@ -48,7 +58,8 @@ public class MoveService : IMoveService
 
     private static void TryToEndGame(Game game, IEnumerable<Player> players)
     {
-        var limit = game.RoundsNumber / 2 + 1;
+        // RoundsNumber * 2 = max point in game, max points / MaxPlayers = per player, + 1 to take above a half.
+        var limit = game.RoundsNumber * 2 / Game.MaxPlayers + 1;
         if (players.Any(x => x.Score >= limit)) game.Status = GameStatus.Ended;
         if (game.RoundsPassed == game.RoundsNumber) game.Status = GameStatus.Ended;
     }
